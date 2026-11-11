@@ -130,4 +130,23 @@ async function fetch(req, env) {
   });
 }
 
-export default { fetch };
+// Thrown Responses must be returned, not left uncaught (Cloudflare error 1101).
+// A 401 with WWW-Authenticate makes git-lfs ask the credential helper for the keys.
+async function handle(req, env) {
+  try {
+    return await fetch(req, env);
+  } catch (e) {
+    if (!(e instanceof Response)) {
+      throw e;
+    }
+    if (e.status === 401) {
+      return new Response(null, {
+        status: 401,
+        headers: { "WWW-Authenticate": 'Basic realm="git-lfs"' },
+      });
+    }
+    return e;
+  }
+}
+
+export default { fetch: handle };
